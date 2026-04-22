@@ -1,0 +1,17 @@
+{
+  "name": "text-to-image",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "echo \"Run: npm --workspace services/api run dev  (API)\" && echo \"and:  npm --workspace apps/client run dev  (Client)\"",
+    "dev:api": "npm --workspace services/api run dev",
+    "dev:client": "npm --workspace apps/client run dev"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+

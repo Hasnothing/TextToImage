@@ -1,0 +1,11 @@
+{
+  "name": "@text-to-image/client",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --preserve-symlinks-main scripts/dev-server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
