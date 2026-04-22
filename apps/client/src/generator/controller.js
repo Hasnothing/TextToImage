@@ -1,9 +1,6 @@
 import { normalizeWhitespace } from "../utils/text.js";
 
-const DEFAULT_API_BASE_URL = "http://localhost:8787";
-
 export function createGeneratorController({
-  apiBaseUrlEl,
   useSelectionEl,
   pasteClipboardEl,
   clearSelectionEl,
@@ -15,10 +12,13 @@ export function createGeneratorController({
   generateBtnEl,
   statusEl,
   resultsEl,
+  getApiBaseUrl,
+  translate,
   getSelectionText,
   clearSelection,
 }) {
   let currentBook = null;
+  const tr = typeof translate === "function" ? translate : (s) => s;
 
   function setStatus(message, kind = "info") {
     statusEl.textContent = message;
@@ -36,11 +36,6 @@ export function createGeneratorController({
   function readNumber(input, fallback) {
     const parsed = Number(input.value);
     return Number.isFinite(parsed) ? parsed : fallback;
-  }
-
-  function getApiBaseUrl() {
-    const value = apiBaseUrlEl.value.trim();
-    return value.length > 0 ? value : DEFAULT_API_BASE_URL;
   }
 
   function joinPrompt(selectedText, extraPrompt) {
@@ -91,8 +86,12 @@ export function createGeneratorController({
       steps: readNumber(stepsEl, 25),
     };
 
-    const apiBaseUrl = getApiBaseUrl();
-    setStatus("Generating…", "busy");
+    const apiBaseUrl = String(getApiBaseUrl?.() || "").trim();
+    if (!apiBaseUrl) {
+      setStatus(tr("status.missing_api"), "error");
+      return;
+    }
+    setStatus(tr("status.generating"), "busy");
     generateBtnEl.disabled = true;
 
     try {
@@ -132,7 +131,7 @@ export function createGeneratorController({
         resultsEl.prepend(card);
       }
 
-      setStatus(`Done • prompt length ${requestPrompt.length}`, "ok");
+      setStatus(tr("status.done", { n: requestPrompt.length }), "ok");
     } catch (err) {
       setStatus(String(err?.message || err || "Unknown error"), "error");
     } finally {
@@ -145,14 +144,14 @@ export function createGeneratorController({
     try {
       const text = await navigator.clipboard.readText();
       if (!text || !text.trim()) {
-        setStatus("Clipboard is empty.", "error");
+        setStatus(tr("status.clipboard_empty"), "error");
         return;
       }
       selectedTextEl.value = text.trim();
-      setStatus("Pasted from clipboard.", "ok");
+      setStatus(tr("status.clipboard_pasted"), "ok");
       updateButtons();
     } catch {
-      setStatus("Clipboard read failed (permission denied). Paste manually instead.", "error");
+      setStatus(tr("status.clipboard_failed"), "error");
     }
   }
 
@@ -169,9 +168,9 @@ export function createGeneratorController({
   function onBookChanged(book) {
     currentBook = book;
     if (book?.type === "pdf") {
-      setStatus("PDF mode: use “Paste clipboard” after copying text from the PDF.", "info");
+      setStatus(tr("status.pdf_hint"), "info");
     } else {
-      setStatus("Select text in the reader, then click “Use selection”.", "info");
+      setStatus(tr("status.select_hint"), "info");
     }
     updateButtons();
   }
@@ -193,7 +192,7 @@ export function createGeneratorController({
   selectedTextEl.addEventListener("input", () => updateButtons());
   generateBtnEl.addEventListener("click", () => generateImage());
 
-  setStatus("Ready.", "info");
+  setStatus(tr("status.ready"), "info");
   updateButtons();
 
   return {
@@ -201,4 +200,3 @@ export function createGeneratorController({
     onBookChanged,
   };
 }
-

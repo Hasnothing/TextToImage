@@ -18,6 +18,7 @@ Then open the URL printed in the terminal.
   - **EPUB**: supported via in-browser ZIP decompression (`DecompressionStream` in Chrome/Edge/Android Chrome)
   - **PDF**: supported in viewer mode (copy text in PDF viewer → “Paste clipboard” in Generate panel)
   - **AZW3 / MOBI**: not supported yet (convert to EPUB with Calibre)
+- Keeps imported books in a **local library** (IndexedDB) with last-opened history and reading position memory
 - Reading-app style UI: contents panel, chapter navigation, reader settings (font size / line height / theme)
 - Select text (TXT/EPUB) or paste from clipboard (PDF)
 - Send selected text to the local API (`services/api`) to generate an image

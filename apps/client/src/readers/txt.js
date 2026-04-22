@@ -1,29 +1,40 @@
-import { escapeHtml, slugify } from "../utils/text.js";
+import { slugify } from "../utils/text.js";
 
 export async function loadTxtBook(file) {
   const text = await file.text();
   const title = stripExtension(file.name);
-  const chapters = splitTxtIntoChapters(text).map((c, idx) => ({
-    id: `txt-${idx}-${slugify(c.title)}`,
-    title: c.title,
-    loadHtml: async () => textToHtml(c.text),
-  }));
-
-  return {
+  return loadTxtBookFromChapters({
     id: `txt-${Date.now()}`,
-    type: "txt",
     title,
     fileName: file.name,
-    chapters,
+    chapters: splitTxtIntoChapters(text).map((c) => ({
+      title: c.title,
+      text: reflowTxtText(c.text),
+    })),
+  });
+}
+
+export function loadTxtBookFromChapters({ id, title, fileName, chapters }) {
+  const chapterObjs = (chapters || []).map((c, idx) => {
+    const chapterTitle = String(c.title || `Chapter ${idx + 1}`);
+    const chapterText = String(c.text || "");
+    return {
+      id: `txt-${idx}-${slugify(chapterTitle)}`,
+      title: chapterTitle,
+      loadHtml: async () => ({ title: chapterTitle, text: chapterText }),
+    };
+  });
+
+  return {
+    id: id || `txt-${Date.now()}`,
+    type: "txt",
+    title: title || "TXT",
+    fileName: fileName || "book.txt",
+    chapters: chapterObjs.length ? chapterObjs : [{ id: "txt-0-start", title: "Start", loadHtml: async () => ({ text: "" }) }],
   };
 }
 
-function stripExtension(name) {
-  const dot = name.lastIndexOf(".");
-  return dot === -1 ? name : name.slice(0, dot);
-}
-
-function splitTxtIntoChapters(text) {
+export function splitTxtIntoChapters(text) {
   const lines = String(text || "").replaceAll("\r\n", "\n").split("\n");
   const markers = [];
 
@@ -48,7 +59,7 @@ function splitTxtIntoChapters(text) {
   }
 
   if (markers.length === 0) {
-    return [{ title: "Start", text }];
+    return [{ title: "Start", text: String(text || "") }];
   }
 
   const chapters = [];
@@ -60,19 +71,25 @@ function splitTxtIntoChapters(text) {
     chapters.push({ title, text: body || "" });
   }
 
-  return chapters.length > 0 ? chapters : [{ title: "Start", text }];
+  return chapters.length > 0 ? chapters : [{ title: "Start", text: String(text || "") }];
 }
 
-function textToHtml(text) {
+export function reflowTxtText(text) {
+  // Turn hard-wrapped lines into paragraphs:
+  // - paragraph breaks are preserved as blank lines
+  // - within a paragraph, newlines are collapsed to spaces
   const normalized = String(text || "").replaceAll("\r\n", "\n").trim();
-  if (!normalized) return `<p><em>(Empty chapter)</em></p>`;
+  if (!normalized) return "";
 
-  const chunks = normalized.split(/\n\s*\n+/g);
-  const paragraphs = chunks.map((p) => {
-    const safe = escapeHtml(p.trim()).replaceAll("\n", "<br />");
-    return `<p>${safe}</p>`;
-  });
+  const blocks = normalized.split(/\n\s*\n+/g);
+  const out = blocks
+    .map((b) => b.trim().replace(/\n+/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  return out.join("\n\n");
+}
 
-  return paragraphs.join("\n");
+function stripExtension(name) {
+  const dot = name.lastIndexOf(".");
+  return dot === -1 ? name : name.slice(0, dot);
 }
 

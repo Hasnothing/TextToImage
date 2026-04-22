@@ -6,6 +6,11 @@ export function loadSettings() {
     lineHeight: 1.65,
     theme: "dark",
     pageWidth: "normal",
+    language: "en",
+    apiBaseUrl: "http://localhost:8787",
+    defaultWidth: 768,
+    defaultHeight: 768,
+    defaultSteps: 25,
   };
 
   try {
@@ -17,6 +22,11 @@ export function loadSettings() {
       lineHeight: clampNumber(parsed.lineHeight, 1.3, 2.0, defaults.lineHeight),
       theme: parsed.theme === "light" ? "light" : "dark",
       pageWidth: ["narrow", "normal", "wide"].includes(parsed.pageWidth) ? parsed.pageWidth : "normal",
+      language: parsed.language === "zh" ? "zh" : "en",
+      apiBaseUrl: typeof parsed.apiBaseUrl === "string" && parsed.apiBaseUrl.trim() ? parsed.apiBaseUrl.trim() : defaults.apiBaseUrl,
+      defaultWidth: clampNumber(parsed.defaultWidth, 256, 2048, defaults.defaultWidth),
+      defaultHeight: clampNumber(parsed.defaultHeight, 256, 2048, defaults.defaultHeight),
+      defaultSteps: clampNumber(parsed.defaultSteps, 5, 80, defaults.defaultSteps),
     };
   } catch {
     return defaults;
@@ -39,4 +49,3 @@ function clampNumber(value, min, max, fallback) {
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, n));
 }
-

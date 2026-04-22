@@ -12,7 +12,7 @@
         <div class="topbar__left">
           <div class="brand">
             <div class="brand__title">TextToImage</div>
-            <div id="bookMeta" class="brand__subtitle">No book loaded</div>
+            <div id="bookMeta" class="brand__subtitle" data-i18n="top.no_book">No book loaded</div>
           </div>
         </div>
         <div class="topbar__right">
@@ -22,25 +22,48 @@
               type="file"
               accept=".txt,.epub,.pdf,.azw3,.mobi,text/plain,application/epub+zip,application/pdf"
             />
-            <span>Import book</span>
+            <span data-i18n="top.import">Import book</span>
           </label>
-          <button id="toggleToc" class="btn btn--secondary" type="button">Contents</button>
-          <button id="toggleSettings" class="btn btn--secondary" type="button">Aa</button>
-          <button id="toggleGenerate" class="btn" type="button">Generate</button>
+          <button id="openLibrary" class="btn btn--secondary" type="button" data-i18n="top.library">Library</button>
+          <button id="openContents" class="btn btn--secondary" type="button" data-i18n="top.contents">Contents</button>
+          <button id="toggleSettings" class="btn btn--secondary" type="button" data-i18n="top.settings">Settings</button>
+          <button id="toggleGenerate" class="btn btn--secondary" type="button" data-i18n="top.ai">AI</button>
         </div>
       </header>
 
       <main class="shell">
         <aside id="tocPanel" class="sidepanel" aria-label="Table of contents">
           <div class="sidepanel__header">
-            <div class="sidepanel__title">Contents</div>
-            <button id="closeToc" class="iconbtn" type="button" aria-label="Close contents">×</button>
+            <div class="sidepanel__title" data-i18n="nav.title">Library</div>
+            <button id="closeToc" class="iconbtn" type="button" aria-label="Close" title="Close">x</button>
           </div>
-          <div id="tocList" class="toc"></div>
+          <div class="tabs" role="tablist" aria-label="Navigation tabs">
+            <button id="tabLibrary" class="tab" type="button" role="tab" aria-selected="true" data-i18n="nav.tab_library">Library</button>
+            <button id="tabContents" class="tab" type="button" role="tab" aria-selected="false" data-i18n="nav.tab_contents">Contents</button>
+          </div>
+
+          <div class="sidepanel__body">
+            <div id="libraryView" class="navview" role="tabpanel" aria-label="Library">
+              <div class="field field--tight">
+                <label for="librarySearch" data-i18n="library.search">Search</label>
+                <input id="librarySearch" type="search" spellcheck="false" data-i18n-placeholder="library.search_placeholder" />
+              </div>
+              <div id="libraryList" class="library"></div>
+              <div id="libraryEmpty" class="hint" data-i18n="library.empty">No imported books yet.</div>
+            </div>
+
+            <div id="tocView" class="navview" role="tabpanel" aria-label="Contents" hidden>
+              <div id="tocList" class="toc"></div>
+              <div class="sidepanel__footer">
+                <div class="hint" data-i18n="nav.hint">
+                  TXT and EPUB support in-app selection. PDF uses viewer mode (copy text then paste).
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="sidepanel__footer">
-            <div class="hint">
-              Supported now: <strong>TXT</strong>, <strong>EPUB</strong> (Chrome/Edge/Android via <code>DecompressionStream</code>), <strong>PDF</strong>
-              (viewer).
+            <div class="hint" data-i18n="library.footer">
+              Tip: EPUB import works best in Chrome/Edge. AZW3/MOBI: convert to EPUB with Calibre.
             </div>
           </div>
         </aside>
@@ -48,84 +71,82 @@
         <section class="reader">
           <div class="reader__chrome">
             <div class="reader__nav">
-              <button id="prevChapter" class="btn btn--ghost" type="button" disabled>Prev</button>
-              <button id="nextChapter" class="btn btn--ghost" type="button" disabled>Next</button>
+              <button id="prevChapter" class="btn btn--ghost" type="button" disabled data-i18n="reader.prev">Prev</button>
+              <button id="nextChapter" class="btn btn--ghost" type="button" disabled data-i18n="reader.next">Next</button>
             </div>
             <div id="readerStatus" class="status" aria-live="polite"></div>
           </div>
 
           <div id="readerViewport" class="viewport" aria-label="Reader viewport">
-            <div id="readerContent" class="page" tabindex="0" aria-label="Book content"></div>
+            <div id="readerContent" class="page" tabindex="0" aria-label="Book content">
+              <pre id="readerText" class="page__text"></pre>
+            </div>
             <iframe id="pdfFrame" class="pdf" title="PDF viewer" hidden></iframe>
             <div id="emptyState" class="empty">
-              <div class="empty__title">Import a book</div>
-              <div class="empty__subtitle">TXT and EPUB allow in-app text selection. For PDF, copy text and paste into “Selected text”.</div>
+              <div class="empty__title" data-i18n="empty.title">Import a book</div>
+              <div class="empty__subtitle" data-i18n="empty.subtitle">
+                TXT and EPUB allow in-app text selection. For PDF, copy text and paste into Selected text.
+              </div>
             </div>
           </div>
 
           <div class="progress">
             <input id="chapterSlider" type="range" min="0" max="0" value="0" step="1" disabled />
-            <div id="progressText" class="progress__text">—</div>
+            <div id="progressText" class="progress__text">-</div>
           </div>
         </section>
 
         <aside id="genPanel" class="drawer" aria-label="Generate image">
           <div class="drawer__header">
-            <div class="drawer__title">Generate</div>
-            <button id="closeGenerate" class="iconbtn" type="button" aria-label="Close generate">×</button>
+            <div class="drawer__title" data-i18n="ai.title">AI Image</div>
+            <button id="closeGenerate" class="iconbtn" type="button" aria-label="Close" title="Close">x</button>
           </div>
 
           <div class="drawer__body">
-            <div class="field">
-              <label for="apiBaseUrl">API base URL</label>
-              <input id="apiBaseUrl" type="url" spellcheck="false" />
-              <div class="field__help">Default: <code>http://localhost:8787</code></div>
-            </div>
-
             <div class="row row--actions">
-              <button id="useSelection" class="btn btn--secondary" type="button" disabled>Use selection</button>
-              <button id="pasteClipboard" class="btn btn--secondary" type="button">Paste clipboard</button>
-              <button id="clearSelection" class="btn btn--ghost" type="button" disabled>Clear</button>
+              <button id="useSelection" class="btn btn--secondary" type="button" disabled data-i18n="ai.use_selection">Use selection</button>
+              <button id="pasteClipboard" class="btn btn--secondary" type="button" data-i18n="ai.paste_clipboard">Paste clipboard</button>
+              <button id="clearSelection" class="btn btn--ghost" type="button" disabled data-i18n="ai.clear">Clear</button>
             </div>
 
             <div class="field">
-              <label for="selectedText">Selected text</label>
+              <label for="selectedText" data-i18n="ai.selected_label">Selected text</label>
               <textarea
                 id="selectedText"
                 rows="7"
                 spellcheck="false"
-                placeholder="Select text in the reader (TXT/EPUB) then click “Use selection”, or paste from clipboard (PDF)."
+                data-i18n-placeholder="ai.selected_placeholder"
               ></textarea>
             </div>
 
             <div class="field">
-              <label for="prompt">Prompt (optional)</label>
-              <textarea id="prompt" rows="4" spellcheck="false" placeholder="Style or details (e.g. cinematic lighting, watercolor, detailed)."></textarea>
+              <label for="prompt" data-i18n="ai.prompt_label">Prompt (optional)</label>
+              <textarea id="prompt" rows="4" spellcheck="false" data-i18n-placeholder="ai.prompt_placeholder"></textarea>
             </div>
 
             <div class="row">
               <div class="field">
-                <label for="width">Width</label>
+                <label for="width" data-i18n="ai.width">Width</label>
                 <input id="width" type="number" min="256" max="2048" step="64" value="768" />
               </div>
               <div class="field">
-                <label for="height">Height</label>
+                <label for="height" data-i18n="ai.height">Height</label>
                 <input id="height" type="number" min="256" max="2048" step="64" value="768" />
               </div>
               <div class="field">
-                <label for="steps">Steps</label>
+                <label for="steps" data-i18n="ai.steps">Steps</label>
                 <input id="steps" type="number" min="5" max="80" step="1" value="25" />
               </div>
             </div>
 
             <div class="row row--actions">
-              <button id="generateBtn" class="btn" type="button" disabled>Generate image</button>
+              <button id="generateBtn" class="btn" type="button" disabled data-i18n="ai.generate">Generate image</button>
               <div id="status" class="status" aria-live="polite"></div>
             </div>
 
             <div class="divider"></div>
 
-            <div class="panel__title panel__title--small">Results</div>
+            <div class="panel__title panel__title--small" data-i18n="ai.results">Results</div>
             <div id="results" class="results"></div>
           </div>
         </aside>
@@ -134,41 +155,73 @@
       <dialog id="settingsDialog" class="dialog">
         <form method="dialog" class="dialog__inner">
           <div class="dialog__header">
-            <div class="dialog__title">Reader settings</div>
-            <button class="iconbtn" value="close" aria-label="Close settings">×</button>
+            <div class="dialog__title" data-i18n="settings.title">Settings</div>
+            <button class="iconbtn" value="close" aria-label="Close" title="Close">x</button>
           </div>
 
           <div class="dialog__body">
+            <div class="panel__title--small" data-i18n="settings.section_app">App</div>
             <div class="row row--two">
               <div class="field">
-                <label for="fontSize">Font size</label>
+                <label for="language" data-i18n="settings.language">Language</label>
+                <select id="language">
+                  <option value="en">English</option>
+                  <option value="zh">中文</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="defaultApiBaseUrl" data-i18n="settings.api_base">API base URL</label>
+                <input id="defaultApiBaseUrl" type="url" spellcheck="false" placeholder="http://localhost:8787" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="defaultWidth" data-i18n="settings.default_width">Default width</label>
+                <input id="defaultWidth" type="number" min="256" max="2048" step="64" value="768" />
+              </div>
+              <div class="field">
+                <label for="defaultHeight" data-i18n="settings.default_height">Default height</label>
+                <input id="defaultHeight" type="number" min="256" max="2048" step="64" value="768" />
+              </div>
+              <div class="field">
+                <label for="defaultSteps" data-i18n="settings.default_steps">Default steps</label>
+                <input id="defaultSteps" type="number" min="5" max="80" step="1" value="25" />
+              </div>
+            </div>
+
+            <div class="divider"></div>
+            <div class="panel__title--small" data-i18n="settings.section_reader">Reader</div>
+            <div class="row row--two">
+              <div class="field">
+                <label for="fontSize" data-i18n="settings.font_size">Font size</label>
                 <input id="fontSize" type="range" min="14" max="24" step="1" value="17" />
               </div>
               <div class="field">
-                <label for="lineHeight">Line height</label>
+                <label for="lineHeight" data-i18n="settings.line_height">Line height</label>
                 <input id="lineHeight" type="range" min="1.3" max="2.0" step="0.05" value="1.65" />
               </div>
             </div>
 
             <div class="row row--two">
               <div class="field">
-                <label for="theme">Theme</label>
+                <label for="theme" data-i18n="settings.theme">Theme</label>
                 <select id="theme">
-                  <option value="dark">Dark</option>
-                  <option value="light">Light</option>
+                  <option value="dark" data-i18n="settings.theme_dark">Dark</option>
+                  <option value="light" data-i18n="settings.theme_light">Light</option>
                 </select>
               </div>
               <div class="field">
-                <label for="pageWidth">Page width</label>
+                <label for="pageWidth" data-i18n="settings.page_width">Page width</label>
                 <select id="pageWidth">
-                  <option value="narrow">Narrow</option>
-                  <option value="normal">Normal</option>
-                  <option value="wide">Wide</option>
+                  <option value="narrow" data-i18n="settings.width_narrow">Narrow</option>
+                  <option value="normal" data-i18n="settings.width_normal">Normal</option>
+                  <option value="wide" data-i18n="settings.width_wide">Wide</option>
                 </select>
               </div>
             </div>
 
-            <div class="hint">
+            <div class="hint" data-i18n="settings.hint">
               Tip: EPUB support uses in-browser ZIP decompression. If EPUB import fails, try Chrome/Edge on Windows or Chrome on Android.
             </div>
           </div>
@@ -179,4 +232,3 @@
     <script type="module" src="./src/app.js"></script>
   </body>
 </html>
-

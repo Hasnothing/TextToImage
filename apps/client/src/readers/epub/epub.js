@@ -1,5 +1,5 @@
 import { openZip } from "./zip.js";
-import { bytesToBase64, escapeHtml, slugify } from "../../utils/text.js";
+import { slugify } from "../../utils/text.js";
 
 export async function loadEpubBook(file) {
   const ab = await file.arrayBuffer();
@@ -48,12 +48,8 @@ export async function loadEpubBook(file) {
         loadHtml: async () => {
           const xhtml = await zip.readText(fullPath);
           const doc = parseHtml(xhtml);
-          await inlineImages(doc, zip, dirName(fullPath));
-          const body = doc.querySelector("body");
-          const heading = body?.querySelector("h1,h2,h3");
-          const chapterTitle = heading?.textContent?.trim() || doc.querySelector("title")?.textContent?.trim() || `Section ${idx + 1}`;
-          const html = body ? body.innerHTML : `<p>${escapeHtml(chapterTitle)}</p>`;
-          return { title: chapterTitle, html };
+          const { chapterTitle, text } = extractReadableText(doc, `Section ${idx + 1}`);
+          return { title: chapterTitle, text };
         },
       };
     })
@@ -79,6 +75,45 @@ function parseXml(xmlText, label) {
 function parseHtml(htmlText) {
   const parser = new DOMParser();
   return parser.parseFromString(htmlText, "text/html");
+}
+
+function extractReadableText(doc, fallbackTitle) {
+  const body = doc.querySelector("body");
+  const heading = body?.querySelector("h1,h2,h3");
+  const chapterTitle = heading?.textContent?.trim() || doc.querySelector("title")?.textContent?.trim() || fallbackTitle;
+
+  if (!body) {
+    return { chapterTitle, text: chapterTitle };
+  }
+
+  // Fast, reading-app oriented extraction:
+  // - keep paragraphs and headings
+  // - ignore images/scripts/styles
+  const parts = [];
+  const candidates = body.querySelectorAll("h1,h2,h3,p,li,blockquote");
+  for (const el of candidates) {
+    const text = normalizeText(el.textContent || "");
+    if (!text) continue;
+    parts.push(text);
+  }
+
+  const text = parts.length ? parts.join("\n\n") : normalizeText(body.textContent || "");
+  return { chapterTitle, text };
+}
+
+function normalizeText(text) {
+  const s = String(text || "")
+    .replaceAll("\r\n", "\n")
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  // Many EPUBs contain hard line breaks; reflow within paragraphs by collapsing single newlines.
+  const blocks = s.split(/\n\s*\n+/g);
+  const out = blocks
+    .map((b) => b.trim().replace(/\n+/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  return out.join("\n\n");
 }
 
 function stripExtension(name) {
@@ -111,8 +146,6 @@ function firstByLocalName(docOrEl, localName) {
   if (!docOrEl) return null;
   const list = docOrEl.getElementsByTagNameNS?.("*", localName);
   if (list && list.length) return list[0];
-
-  // Fallback for HTML documents (no NS API on some nodes)
   const all = docOrEl.getElementsByTagName?.(localName);
   return all && all.length ? all[0] : null;
 }
@@ -121,46 +154,14 @@ function allByLocalName(docOrEl, localName) {
   if (!docOrEl) return [];
   const list = docOrEl.getElementsByTagNameNS?.("*", localName);
   if (list && list.length) return Array.from(list);
-
   const all = docOrEl.getElementsByTagName?.(localName);
   return all && all.length ? Array.from(all) : [];
 }
 
 function getEpubTitle(opfDoc) {
-  // Namespaces make querySelector fragile; rely on localName searches.
   const candidates = allByLocalName(opfDoc, "title")
     .map((el) => el?.textContent?.trim())
     .filter(Boolean);
   return candidates[0] || "";
 }
 
-function mimeFromPath(filePath) {
-  const ext = filePath.split(".").pop()?.toLowerCase() || "";
-  if (ext === "png") return "image/png";
-  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
-  if (ext === "gif") return "image/gif";
-  if (ext === "svg") return "image/svg+xml";
-  if (ext === "webp") return "image/webp";
-  return "application/octet-stream";
-}
-
-async function inlineImages(doc, zip, baseDir) {
-  const images = Array.from(doc.querySelectorAll("img[src]"));
-  if (images.length === 0) return;
-
-  await Promise.all(
-    images.map(async (img) => {
-      const src = img.getAttribute("src") || "";
-      if (!src || src.startsWith("data:") || src.startsWith("http:") || src.startsWith("https:")) return;
-      const fullPath = resolvePath(baseDir, src);
-      try {
-        const bytes = await zip.readBytes(fullPath);
-        const mime = mimeFromPath(fullPath);
-        const base64 = bytesToBase64(bytes);
-        img.setAttribute("src", `data:${mime};base64,${base64}`);
-      } catch {
-        // Keep as-is if missing; some EPUBs reference remote or optional images.
-      }
-    })
-  );
-}

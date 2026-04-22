@@ -16,6 +16,10 @@ It also includes a small **local API proxy** so your Stable Diffusion / image pr
   - **EPUB**: supported in modern Chromium browsers via `DecompressionStream`
   - **PDF**: supported in viewer mode (copy text → paste)
   - **AZW3 / MOBI**: not supported yet (convert to EPUB)
+- Client features:
+  - Local **library + history** (books persist in browser storage via IndexedDB)
+  - Reader settings + app settings (API base URL, language)
+  - English / Chinese UI
 - `services/api` — HTTP API proxy that can call a Stable Diffusion WebUI-compatible endpoint (`/sdapi/v1/txt2img`)
 - `apps/desktop` — placeholder docs for Electron wrapper
 - `apps/mobile` — placeholder docs for Capacitor wrapper

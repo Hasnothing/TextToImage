@@ -4,6 +4,7 @@ export function createReaderController({
   tocListEl,
   viewportEl,
   readerContentEl,
+  readerTextEl,
   pdfFrameEl,
   emptyStateEl,
   readerStatusEl,
@@ -14,7 +15,10 @@ export function createReaderController({
 }) {
   let currentBook = null;
   let currentChapterIndex = 0;
+  const chapterCache = new Map();
   const selectionListeners = new Set();
+  const positionListeners = new Set();
+  let scrollTimer = null;
 
   function setStatus(message, kind = "info") {
     readerStatusEl.textContent = message;
@@ -73,7 +77,7 @@ export function createReaderController({
     chapterSliderEl.value = String(currentChapterIndex);
 
     if (!currentBook) {
-      progressTextEl.textContent = "—";
+      progressTextEl.textContent = "-";
       return;
     }
 
@@ -93,25 +97,42 @@ export function createReaderController({
     const ch = chapters[index];
     if (!ch) return;
 
-    setStatus("Loading…", "busy");
+    setStatus("Loading...", "busy");
 
-    const loaded = await ch.loadHtml();
+    let loaded = chapterCache.get(index);
+    if (!loaded) {
+      loaded = await ch.loadHtml();
+      chapterCache.set(index, loaded);
+      if (chapterCache.size > 5) {
+        const firstKey = chapterCache.keys().next().value;
+        chapterCache.delete(firstKey);
+      }
+    }
+
     if (typeof loaded === "string") {
+      readerTextEl.textContent = "";
       readerContentEl.innerHTML = loaded;
-    } else {
-      readerContentEl.innerHTML = loaded.html;
+    } else if (loaded && typeof loaded.text === "string") {
+      readerTextEl.textContent = loaded.text;
+      readerContentEl.replaceChildren(readerTextEl);
       if (loaded.title) currentBook.chapters[index].title = loaded.title;
+    } else {
+      readerTextEl.textContent = "";
+      readerContentEl.innerHTML = loaded?.html || "";
+      if (loaded?.title) currentBook.chapters[index].title = loaded.title;
     }
 
     setStatus(`${currentBook.title} • ${currentBook.chapters[index].title || `Chapter ${index + 1}`}`, "ok");
     viewportEl.scrollTop = 0;
     readerContentEl.focus?.();
+    notifyPositionChanged();
   }
 
   async function setBook(book) {
     cleanupBookResources();
     currentBook = book;
     currentChapterIndex = 0;
+    chapterCache.clear();
 
     bookMetaEl.textContent = `${book.title} • ${book.type.toUpperCase()}`;
 
@@ -121,10 +142,11 @@ export function createReaderController({
       pdfFrameEl.hidden = false;
       readerContentEl.hidden = true;
       pdfFrameEl.src = book.pdfUrl;
-      setStatus("PDF loaded. Select text in the PDF viewer, copy it, then use “Paste clipboard”.", "ok");
+      setStatus("PDF loaded. Select text in the PDF viewer, copy it, then use Paste clipboard.", "ok");
       renderToc();
       updateNav();
       notifySelectionChanged();
+      notifyPositionChanged();
       return;
     }
 
@@ -135,6 +157,7 @@ export function createReaderController({
     renderToc();
     updateNav();
     notifySelectionChanged();
+    notifyPositionChanged();
   }
 
   function cleanupBookResources() {
@@ -157,6 +180,7 @@ export function createReaderController({
     renderToc();
     updateNav();
     notifySelectionChanged();
+    notifyPositionChanged();
   }
 
   function getSelectionText() {
@@ -184,14 +208,51 @@ export function createReaderController({
     for (const cb of selectionListeners) cb();
   }
 
+  function notifyPositionChanged() {
+    if (!currentBook || currentBook.type === "pdf") return;
+    const pos = { chapterIndex: currentChapterIndex, scrollTop: viewportEl.scrollTop };
+    for (const cb of positionListeners) cb(pos);
+  }
+
   function onSelectionChanged(cb) {
     selectionListeners.add(cb);
     return () => selectionListeners.delete(cb);
   }
 
+  function onPositionChanged(cb) {
+    positionListeners.add(cb);
+    return () => positionListeners.delete(cb);
+  }
+
+  async function setPosition(pos) {
+    if (!currentBook || currentBook.type === "pdf") return;
+    const chapterIndex = Number(pos?.chapterIndex ?? 0);
+    const scrollTop = Number(pos?.scrollTop ?? 0);
+    if (Number.isFinite(chapterIndex)) {
+      await goToChapter(chapterIndex);
+    }
+    if (Number.isFinite(scrollTop)) {
+      viewportEl.scrollTop = Math.max(0, scrollTop);
+      notifyPositionChanged();
+    }
+  }
+
+  function getPosition() {
+    if (!currentBook || currentBook.type === "pdf") return null;
+    return { chapterIndex: currentChapterIndex, scrollTop: viewportEl.scrollTop };
+  }
+
   prevChapterEl.addEventListener("click", () => goToChapter(currentChapterIndex - 1));
   nextChapterEl.addEventListener("click", () => goToChapter(currentChapterIndex + 1));
   chapterSliderEl.addEventListener("input", () => goToChapter(Number(chapterSliderEl.value)));
+
+  viewportEl.addEventListener("scroll", () => {
+    if (scrollTimer) return;
+    scrollTimer = setTimeout(() => {
+      scrollTimer = null;
+      notifyPositionChanged();
+    }, 250);
+  });
 
   document.addEventListener("selectionchange", () => {
     notifySelectionChanged();
@@ -209,5 +270,8 @@ export function createReaderController({
     getSelectionText,
     clearSelection,
     onSelectionChanged,
+    onPositionChanged,
+    setPosition,
+    getPosition,
   };
 }
